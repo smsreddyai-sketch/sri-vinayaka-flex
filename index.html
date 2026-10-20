@@ -22,7 +22,10 @@
     .btn-green { background: #25d366; color: #fff; }
     .btn-green:hover { background: #1da851; }
 
-    .hero { background: linear-gradient(135deg, #d62828, #f77f00); color: #fff; padding: 90px 0; text-align: center; }
+    .hero { background: linear-gradient(rgba(0,0,0,.6), rgba(0,0,0,.6)), url('images/shop-front.jpg') left center/cover no-repeat, linear-gradient(135deg, #d62828, #f77f00); color: #fff; padding: 70px 0; }
+    .hero-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 40px; align-items: center; }
+    .hero h1, .hero p { text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+    .hero-poster { width: 100%; max-width: 420px; justify-self: center; border-radius: 14px; border: 4px solid #fff; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
     .badge { display: inline-block; background: rgba(255,255,255,.2); padding: 6px 18px; border-radius: 20px; font-weight: 600; margin-bottom: 16px; }
     .hero h1 { font-size: 2.6rem; font-weight: 800; margin-bottom: 10px; }
     .hero p { font-size: 1.15rem; margin-bottom: 28px; opacity: .95; }
@@ -52,6 +55,7 @@
 
     @media (max-width: 768px) {
       .hero h1 { font-size: 1.9rem; }
+      .hero-grid { grid-template-columns: 1fr; text-align: center; }
       .contact-box { grid-template-columns: 1fr; }
       .nav .btn { padding: 8px 16px; font-size: .9rem; }
       .logo { font-size: 1.15rem; }
@@ -68,12 +72,15 @@
   </header>
 
   <div class="hero">
-    <div class="container">
-      <div class="badge">🕒 Open 24 Hours</div>
-      <h1>Best Flex Printing in Suryapet</h1>
-      <p>High-quality flex banners, vinyl & sign boards — day or night, at the best price.</p>
-      <a href="https://wa.me/919948522522?text=Hi%2C%20I%20need%20a%20flex%20printing%20quote" class="btn btn-green">💬 WhatsApp Us</a>
-      <a href="#services" class="btn btn-white">Our Services</a>
+    <div class="container hero-grid">
+      <div>
+        <div class="badge">🕒 Open 24 Hours</div>
+        <h1>Best Flex Printing in Suryapet</h1>
+        <p>High-quality flex banners, vinyl & sign boards — day or night, at the best price.</p>
+        <a href="https://wa.me/919948522522?text=Hi%2C%20I%20need%20a%20flex%20printing%20quote" class="btn btn-green">💬 WhatsApp Us</a>
+        <a href="#services" class="btn btn-white">Our Services</a>
+      </div>
+      <img src="images/shop-poster.jpg" alt="Sri Vinayaka Flex, Suryapet" class="hero-poster">
     </div>
   </div>
 
@@ -107,10 +114,10 @@
     <div class="container">
       <h2>Our Work</h2>
       <div class="grid gallery">
-        <img src="https://placehold.co/600x400/d62828/fff?text=Your+Work+1" alt="Flex work 1">
-        <img src="https://placehold.co/600x400/f77f00/fff?text=Your+Work+2" alt="Flex work 2">
-        <img src="https://placehold.co/600x400/d62828/fff?text=Your+Work+3" alt="Flex work 3">
-        <img src="https://placehold.co/600x400/f77f00/fff?text=Your+Work+4" alt="Flex work 4">
+        <img src="images/shop-front.jpg" alt="Sri Vinayaka Flex shop, Canara Bank Road" loading="lazy">
+        <img src="images/work1.jpg" alt="Dussehra wishes flex" loading="lazy">
+        <img src="images/work2.webp" alt="Sri Vinayaka Flex new address banner" loading="lazy" style="object-position: center 40%">
+        <img src="images/shop-poster.jpg" alt="Sri Vinayaka Flex poster" loading="lazy" style="object-position: top">
       </div>
     </div>
   </section>
