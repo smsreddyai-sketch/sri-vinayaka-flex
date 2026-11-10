@@ -140,10 +140,38 @@
 
   <footer>
     © <span id="year"></span> Sri Vinayaka Flex, Suryapet. All rights reserved.
+    · <a href="admin.html" style="color:#888">Owner login</a>
   </footer>
 
   <a href="https://wa.me/919948522522" class="wa-float" aria-label="WhatsApp">💬</a>
 
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+  <script src="js/config.js"></script>
+  <script>
+    // Load "Our Work" photos uploaded from admin.html; keep the default photos if none/unavailable.
+    (async () => {
+      const cfg = window.SVF_CONFIG;
+      if (!cfg || cfg.SUPABASE_URL.includes('YOUR-PROJECT')) return;
+      try {
+        const res = await fetch(`${cfg.SUPABASE_URL}/storage/v1/object/list/${cfg.BUCKET}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: cfg.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + cfg.SUPABASE_ANON_KEY },
+          body: JSON.stringify({ prefix: '', limit: 200, sortBy: { column: 'created_at', order: 'desc' } })
+        });
+        if (!res.ok) return;
+        const files = (await res.json()).filter(f => f.id && f.name !== '.emptyFolderPlaceholder');
+        if (!files.length) return;
+        const grid = document.querySelector('.gallery');
+        grid.innerHTML = '';
+        files.forEach(f => {
+          const img = document.createElement('img');
+          img.src = `${cfg.SUPABASE_URL}/storage/v1/object/public/${cfg.BUCKET}/${encodeURIComponent(f.name)}`;
+          img.alt = 'Sri Vinayaka Flex work';
+          img.loading = 'lazy';
+          grid.append(img);
+        });
+      } catch (e) { /* keep default photos */ }
+    })();
+  </script>
 </body>
 </html>

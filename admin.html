@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>Admin | Sri Vinayaka Flex</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Poppins', sans-serif; color: #222; background: #fff7ee; min-height: 100vh; }
+    header { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .container { max-width: 1000px; margin: auto; padding: 0 20px; }
+    .nav { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; gap: 12px; }
+    .logo { font-size: 1.3rem; font-weight: 800; color: #d62828; }
+    .logo span { color: #f77f00; }
+    .nav a { color: #d62828; font-weight: 600; text-decoration: none; }
+    .box { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 4px 16px rgba(0,0,0,.08); margin: 30px 0; }
+    .login { max-width: 400px; margin: 60px auto; }
+    h1 { font-size: 1.5rem; color: #d62828; margin-bottom: 18px; }
+    label { display: block; font-weight: 600; margin: 12px 0 6px; }
+    input[type=email], input[type=password] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 10px; font: inherit; }
+    .btn { display: inline-block; padding: 12px 24px; border-radius: 30px; font: inherit; font-weight: 600; border: 0; cursor: pointer; background: #d62828; color: #fff; }
+    .btn:hover { background: #a61e1e; }
+    .btn:disabled { opacity: .6; cursor: wait; }
+    .btn-ghost { background: #eee; color: #222; }
+    .btn-ghost:hover { background: #ddd; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
+    .msg { margin-top: 14px; font-size: .95rem; }
+    .msg.err { color: #c00; }
+    .msg.ok { color: #1a7f37; }
+    .drop { border: 2px dashed #f77f00; border-radius: 12px; padding: 30px; text-align: center; cursor: pointer; background: #fffaf3; }
+    .drop.over { background: #ffe9cc; }
+    .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-top: 20px; }
+    .photo { position: relative; }
+    .photo img { width: 100%; height: 160px; object-fit: cover; border-radius: 10px; display: block; }
+    .photo button { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.7); color: #fff; border: 0; border-radius: 20px; padding: 6px 12px; cursor: pointer; font: inherit; font-size: .85rem; }
+    .photo button:hover { background: #d62828; }
+    .muted { color: #666; font-size: .9rem; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container nav">
+      <div class="logo">Sri Vinayaka <span>Flex</span> · Admin</div>
+      <a href="index.html">← View website</a>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Login -->
+    <div id="loginView" class="box login hidden">
+      <h1>Owner Login</h1>
+      <form id="loginForm">
+        <label for="email">Email ID</label>
+        <input type="email" id="email" required autocomplete="username">
+        <label for="password">Password</label>
+        <input type="password" id="password" required autocomplete="current-password">
+        <div class="row">
+          <button class="btn" type="submit" id="loginBtn">Login</button>
+          <button class="btn btn-ghost" type="button" id="forgotBtn">Forgot password?</button>
+        </div>
+      </form>
+      <div id="loginMsg" class="msg"></div>
+    </div>
+
+    <!-- Set new password (after reset link) -->
+    <div id="resetView" class="box login hidden">
+      <h1>Set New Password</h1>
+      <form id="resetForm">
+        <label for="newPassword">New password</label>
+        <input type="password" id="newPassword" required minlength="6" autocomplete="new-password">
+        <div class="row"><button class="btn" type="submit">Save password</button></div>
+      </form>
+      <div id="resetMsg" class="msg"></div>
+    </div>
+
+    <!-- Manage photos -->
+    <div id="adminView" class="hidden">
+      <div class="box">
+        <div class="row" style="justify-content: space-between; margin-top: 0">
+          <h1 style="margin: 0">Our Work – Photos</h1>
+          <div><span class="muted" id="who"></span> <button class="btn btn-ghost" id="logoutBtn">Logout</button></div>
+        </div>
+        <p class="muted" style="margin-top: 8px">Photos added here appear in the “Our Work” section of the website, newest first.</p>
+        <div class="drop" id="drop" style="margin-top: 18px">
+          <strong>📷 Tap to choose photos</strong> or drag &amp; drop them here
+          <input type="file" id="fileInput" accept="image/*" multiple hidden>
+        </div>
+        <div id="uploadMsg" class="msg"></div>
+        <div class="photos" id="photos"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="js/config.js"></script>
+  <script>
+    const cfg = window.SVF_CONFIG;
+    const $ = id => document.getElementById(id);
+    const show = view => ['loginView', 'resetView', 'adminView'].forEach(v => $(v).classList.toggle('hidden', v !== view));
+    const say = (el, text, type) => { el.textContent = text; el.className = 'msg ' + (type || ''); };
+
+    if (!cfg || cfg.SUPABASE_URL.includes('YOUR-PROJECT')) {
+      document.querySelector('main').innerHTML = '<div class="box login"><h1>Setup needed</h1><p>Add your Supabase URL and key in <code>js/config.js</code>. See SUPABASE_SETUP.md.</p></div>';
+      throw new Error('Supabase not configured');
+    }
+
+    const sb = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+    const bucket = sb.storage.from(cfg.BUCKET);
+
+    // ---------- Auth ----------
+    sb.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') return show('resetView');
+      if (session) { $('who').textContent = session.user.email; show('adminView'); loadPhotos(); }
+      else show('loginView');
+    });
+
+    $('loginForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      $('loginBtn').disabled = true;
+      say($('loginMsg'), 'Logging in…');
+      const { error } = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('password').value });
+      $('loginBtn').disabled = false;
+      if (error) say($('loginMsg'), 'Login failed: ' + error.message, 'err');
+      else say($('loginMsg'), '');
+    });
+
+    $('forgotBtn').addEventListener('click', async () => {
+      const email = $('email').value.trim();
+      if (!email) return say($('loginMsg'), 'Enter your email ID first, then tap “Forgot password?”.', 'err');
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split('#')[0] });
+      say($('loginMsg'), error ? error.message : 'Password reset link sent to ' + email + '. Check your mail.', error ? 'err' : 'ok');
+    });
+
+    $('resetForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const { error } = await sb.auth.updateUser({ password: $('newPassword').value });
+      if (error) return say($('resetMsg'), error.message, 'err');
+      history.replaceState(null, '', location.pathname);
+      show('adminView'); loadPhotos();
+    });
+
+    $('logoutBtn').addEventListener('click', () => sb.auth.signOut());
+
+    // ---------- Photos ----------
+    async function loadPhotos() {
+      const { data, error } = await bucket.list('', { limit: 200, sortBy: { column: 'created_at', order: 'desc' } });
+      const grid = $('photos');
+      if (error) return say($('uploadMsg'), 'Could not load photos: ' + error.message, 'err');
+      const files = data.filter(f => f.id && f.name !== '.emptyFolderPlaceholder');
+      grid.innerHTML = files.length ? '' : '<p class="muted">No photos yet. The website will show the default photos until you add some.</p>';
+      files.forEach(f => {
+        const div = document.createElement('div');
+        div.className = 'photo';
+        const img = document.createElement('img');
+        img.src = bucket.getPublicUrl(f.name).data.publicUrl;
+        img.alt = f.name;
+        img.loading = 'lazy';
+        const del = document.createElement('button');
+        del.textContent = '🗑 Delete';
+        del.onclick = async () => {
+          if (!confirm('Delete this photo from the website?')) return;
+          const { error } = await bucket.remove([f.name]);
+          if (error) say($('uploadMsg'), 'Delete failed: ' + error.message, 'err');
+          else { say($('uploadMsg'), 'Photo deleted.', 'ok'); loadPhotos(); }
+        };
+        div.append(img, del);
+        grid.append(div);
+      });
+    }
+
+    // Shrink large phone photos before upload (max 1600px, JPEG)
+    function compress(file) {
+      return new Promise(resolve => {
+        if (!file.type.startsWith('image/') || file.type === 'image/gif') return resolve(file);
+        const img = new Image();
+        img.onload = () => {
+          const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.width * scale);
+          c.height = Math.round(img.height * scale);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          c.toBlob(b => resolve(b && b.size < file.size ? b : file), 'image/jpeg', 0.85);
+          URL.revokeObjectURL(img.src);
+        };
+        img.onerror = () => resolve(file);
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    async function upload(fileList) {
+      const files = [...fileList].filter(f => f.type.startsWith('image/'));
+      if (!files.length) return;
+      let done = 0, failed = 0;
+      for (const file of files) {
+        say($('uploadMsg'), `Uploading ${done + failed + 1} of ${files.length}…`);
+        const blob = await compress(file);
+        const ext = blob.type === 'image/jpeg' ? 'jpg' : (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error } = await bucket.upload(name, blob, { contentType: blob.type || file.type, cacheControl: '31536000' });
+        if (error) { failed++; console.error(error); } else done++;
+      }
+      say($('uploadMsg'), failed ? `${done} uploaded, ${failed} failed (are you logged in with the owner email?).` : `${done} photo(s) uploaded ✔`, failed ? 'err' : 'ok');
+      loadPhotos();
+    }
+
+    const drop = $('drop'), input = $('fileInput');
+    drop.onclick = () => input.click();
+    input.onchange = () => { upload(input.files); input.value = ''; };
+    drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+    drop.ondragleave = () => drop.classList.remove('over');
+    drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); upload(e.dataTransfer.files); };
+  </script>
+</body>
+</html>
