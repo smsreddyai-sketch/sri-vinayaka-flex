@@ -1,0 +1,10 @@
+{
+  "name": "sri-vinayaka-flex",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@vercel/blob": "^2.9.0",
+    "nodemailer": "^10.5.0"
+  }
+}

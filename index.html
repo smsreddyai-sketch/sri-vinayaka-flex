@@ -422,7 +422,6 @@
     lb.addEventListener('click', () => lb.classList.remove('open'));
     document.addEventListener('keydown', e => { if (e.key === 'Escape') lb.classList.remove('open'); });
   </script>
-  <script src="js/config.js"></script>
   <script src="js/track.js"></script>
   <script>
     // "Our Work": floating photo rows in random order.
@@ -454,22 +453,15 @@
         grid.append(div);
       });
     }
-    renderGallery(DEFAULT_PHOTOS);
-
     (async () => {
-      const cfg = window.SVF_CONFIG;
-      if (!cfg || cfg.SUPABASE_URL.includes('YOUR-PROJECT')) return;
+      let photos = [];
       try {
-        const res = await fetch(`${cfg.SUPABASE_URL}/storage/v1/object/list/${cfg.BUCKET}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: cfg.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + cfg.SUPABASE_ANON_KEY },
-          body: JSON.stringify({ prefix: '', limit: 200, sortBy: { column: 'created_at', order: 'desc' } })
-        });
-        if (!res.ok) return;
-        const files = (await res.json()).filter(f => f.id && f.name !== '.emptyFolderPlaceholder');
-        if (!files.length) return;
-        renderGallery(files.map(f => `${cfg.SUPABASE_URL}/storage/v1/object/public/${cfg.BUCKET}/${encodeURIComponent(f.name)}`));
-      } catch (e) { /* keep default photos */ }
+        const ctrl = new AbortController();
+        setTimeout(() => ctrl.abort(), 3000);
+        const res = await fetch('/api/photos', { signal: ctrl.signal });
+        if (res.ok) photos = (await res.json()).photos || [];
+      } catch (e) { /* use default photos */ }
+      renderGallery(photos.length ? photos : DEFAULT_PHOTOS);
     })();
   </script>
 </body>

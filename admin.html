@@ -19,7 +19,7 @@
     .login { max-width: 400px; margin: 60px auto; }
     h1 { font-size: 1.5rem; color: #d62828; margin-bottom: 18px; }
     label { display: block; font-weight: 600; margin: 12px 0 6px; }
-    input[type=email], input[type=password] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 10px; font: inherit; }
+    input[type=email], input[type=text] { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 10px; font: inherit; }
     .btn { display: inline-block; padding: 12px 24px; border-radius: 30px; font: inherit; font-weight: 600; border: 0; cursor: pointer; background: #d62828; color: #fff; }
     .btn:hover { background: #a61e1e; }
     .btn:disabled { opacity: .6; cursor: wait; }
@@ -67,16 +67,24 @@
   </header>
 
   <main class="container">
-    <!-- Login -->
+    <!-- Login: step 1 email, step 2 code -->
     <div id="loginView" class="box login hidden">
       <h1>Owner Login</h1>
-      <p class="muted">Only the shop owners' Gmail accounts can log in.</p>
-      <div class="row">
-        <button class="btn btn-google" type="button" id="googleBtn">
-          <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
-          Sign in with Google
-        </button>
-      </div>
+      <form id="emailForm">
+        <p class="muted">Enter your owner Gmail ID. We'll email you a 6-digit code.</p>
+        <label for="email">Gmail ID</label>
+        <input type="email" id="email" required autocomplete="email" placeholder="yourname@gmail.com">
+        <div class="row"><button class="btn" type="submit" id="sendBtn">Send code</button></div>
+      </form>
+      <form id="codeForm" class="hidden">
+        <p class="muted">We sent a 6-digit code to <b id="sentTo"></b>. Check your inbox (and Spam).</p>
+        <label for="code">Login code</label>
+        <input type="text" id="code" required inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="123456" style="font-size: 1.4rem; letter-spacing: 6px; text-align: center">
+        <div class="row">
+          <button class="btn" type="submit" id="verifyBtn">Login</button>
+          <button class="btn btn-ghost" type="button" id="backBtn">Change email</button>
+        </div>
+      </form>
       <div id="loginMsg" class="msg"></div>
     </div>
 
@@ -114,10 +122,10 @@
 
       <div class="box">
         <div class="row" style="justify-content: space-between; margin-top: 0">
-          <h1 style="margin: 0">Our Work – Photos</h1>
+          <h1 style="margin: 0">Our Work – Photos <span class="muted" id="photoCount"></span></h1>
           <div><span class="muted" id="who"></span> <button class="btn btn-ghost" id="logoutBtn">Logout</button></div>
         </div>
-        <p class="muted" style="margin-top: 8px">Photos added here appear in the “Our Work” section of the website, newest first.</p>
+        <p class="muted" style="margin-top: 8px">Add any number of photos. They float across the “Our Work” section of the website in random order.</p>
         <div class="drop" id="drop" style="margin-top: 18px">
           <strong>📷 Tap to choose photos</strong> or drag &amp; drop them here
           <input type="file" id="fileInput" accept="image/*" multiple hidden>
@@ -128,63 +136,90 @@
     </div>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-  <script src="js/config.js"></script>
   <script>
-    const cfg = window.SVF_CONFIG;
     const $ = id => document.getElementById(id);
     const show = view => ['loginView', 'adminView'].forEach(v => $(v).classList.toggle('hidden', v !== view));
     const say = (el, text, type) => { el.textContent = text; el.className = 'msg ' + (type || ''); };
+    const store = {
+      get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+      del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+    };
+    let session = store.get('svf_session');
+    let otpToken = null;
 
-    if (!cfg || cfg.SUPABASE_URL.includes('YOUR-PROJECT')) {
-      document.querySelector('main').innerHTML = '<div class="box login"><h1>Setup needed</h1><p>Add your Supabase URL and key in <code>js/config.js</code>. See SUPABASE_SETUP.md.</p></div>';
-      throw new Error('Supabase not configured');
+    async function api(path, opts = {}) {
+      const headers = { ...(opts.headers || {}) };
+      if (session) headers.Authorization = 'Bearer ' + session;
+      const res = await fetch(path, { ...opts, headers });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401 && path !== '/api/otp-verify') logout('Your login expired. Please log in again.');
+      if (!res.ok) throw new Error(data.error || 'Something went wrong (' + res.status + ')');
+      return data;
     }
 
-    const sb = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-    const bucket = sb.storage.from(cfg.BUCKET);
+    // ---------- Login with email code ----------
+    function logout(message) {
+      session = null;
+      store.del('svf_session');
+      $('emailForm').classList.remove('hidden');
+      $('codeForm').classList.add('hidden');
+      show('loginView');
+      say($('loginMsg'), message || '', message ? 'err' : '');
+    }
 
-    // ---------- Auth ----------
-    const OWNERS = (cfg.OWNER_EMAILS || []).map(e => e.toLowerCase());
-    let denied = '';
-    let loaded = false;
-
-    sb.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        const email = (session.user.email || '').toLowerCase();
-        if (!OWNERS.includes(email)) {
-          denied = email;
-          sb.auth.signOut();
-          return;
-        }
-        $('who').textContent = email;
+    async function enter() {
+      try {
+        const me = await api('/api/me');
+        $('who').textContent = me.email;
         show('adminView');
-        if (!loaded) { loaded = true; loadPhotos(); loadStats(); }
-      } else {
-        loaded = false;
-        show('loginView');
-        if (denied) say($('loginMsg'), `${denied} is not an owner account. Please sign in with an owner Gmail ID.`, 'err');
-        denied = '';
-      }
-      if (location.hash.includes('access_token') || location.search.includes('code=')) history.replaceState(null, '', location.pathname);
+        if (!me.storage.photos || !me.storage.stats) {
+          say($('statsMsg'), 'Storage is not connected in Vercel yet — photos and counts will work after setup.', 'err');
+        }
+        loadStats();
+        loadPhotos();
+      } catch (e) { /* api() already showed the login page */ }
+    }
+
+    $('emailForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const email = $('email').value.trim().toLowerCase();
+      $('sendBtn').disabled = true;
+      say($('loginMsg'), 'Sending code…');
+      try {
+        const r = await api('/api/otp-send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+        otpToken = r.token;
+        $('sentTo').textContent = email;
+        $('emailForm').classList.add('hidden');
+        $('codeForm').classList.remove('hidden');
+        $('code').value = '';
+        $('code').focus();
+        say($('loginMsg'), 'Code sent ✔', 'ok');
+      } catch (err) { say($('loginMsg'), err.message, 'err'); }
+      $('sendBtn').disabled = false;
     });
 
-    $('googleBtn').addEventListener('click', async () => {
-      say($('loginMsg'), 'Opening Google…');
-      const { error } = await sb.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: location.origin + location.pathname, queryParams: { prompt: 'select_account' } }
-      });
-      if (error) say($('loginMsg'), 'Login failed: ' + error.message, 'err');
+    $('codeForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      $('verifyBtn').disabled = true;
+      say($('loginMsg'), 'Checking…');
+      try {
+        const r = await api('/api/otp-verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: otpToken, code: $('code').value }) });
+        session = r.session;
+        store.set('svf_session', session);
+        say($('loginMsg'), '');
+        enter();
+      } catch (err) { say($('loginMsg'), err.message, 'err'); }
+      $('verifyBtn').disabled = false;
     });
 
-    $('logoutBtn').addEventListener('click', () => sb.auth.signOut());
+    $('backBtn').addEventListener('click', () => logout());
+    $('logoutBtn').addEventListener('click', () => logout());
 
     // ---------- Visitor stats ----------
     let rangeDays = 7;
     const LABELS = { visit: '👀 Visit', call: '📞 Call', whatsapp: '💬 WhatsApp', quote: '📝 Quote', directions: '🧭 Directions' };
     const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const place = e => [e.city, e.country].filter(Boolean).join(', ') || 'Unknown';
 
     function bars(el, counts) {
       const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8);
@@ -195,29 +230,24 @@
     }
 
     async function loadStats() {
-      const since = new Date();
-      if (rangeDays === 1) since.setHours(0, 0, 0, 0); else since.setDate(since.getDate() - rangeDays);
-      const { data, error } = await sb.from('site_events').select('*')
-        .gte('created_at', since.toISOString()).order('created_at', { ascending: false }).limit(10000);
-      if (error) return say($('statsMsg'), 'Could not load visitor stats: ' + error.message, 'err');
+      let d;
+      try { d = await api('/api/stats?days=' + rangeDays); }
+      catch (e) { return say($('statsMsg'), 'Could not load counts: ' + e.message, 'err'); }
       say($('statsMsg'), '');
-      const count = t => data.filter(e => e.type === t).length;
-      $('sVisit').textContent = count('visit');
-      $('sCall').textContent = count('call');
-      $('sWhatsapp').textContent = count('whatsapp');
-      $('sQuote').textContent = count('quote');
-      $('sDirections').textContent = count('directions');
-
-      const tally = (list, key) => list.reduce((m, e) => { const k = key(e); m[k] = (m[k] || 0) + 1; return m; }, {});
-      const visits = data.filter(e => e.type === 'visit');
-      const clicks = data.filter(e => e.type !== 'visit');
-      bars($('lSource'), tally(visits, e => e.source || 'Direct / unknown'));
-      bars($('lCity'), tally(visits, place));
-      bars($('lArea'), tally(clicks, e => `${LABELS[e.type] || e.type} – ${e.label || '?'}`));
-
-      $('recent').innerHTML = clicks.slice(0, 100).map(e => `<tr>
-        <td>${new Date(e.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-        <td>${LABELS[e.type] || esc(e.type)}</td><td>${esc(e.label)}</td><td>${esc(place(e))}</td>
+      const t = d.totals || {};
+      $('sVisit').textContent = t.visit || 0;
+      $('sCall').textContent = t.call || 0;
+      $('sWhatsapp').textContent = t.whatsapp || 0;
+      $('sQuote').textContent = t.quote || 0;
+      $('sDirections').textContent = t.directions || 0;
+      bars($('lSource'), d.sources || {});
+      bars($('lCity'), d.places || {});
+      const areas = {};
+      Object.entries(d.areas || {}).forEach(([k, n]) => { const [type, label] = k.split('|'); areas[`${LABELS[type] || type} – ${label}`] = n; });
+      bars($('lArea'), areas);
+      $('recent').innerHTML = (d.recent || []).map(e => `<tr>
+        <td>${new Date(e.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+        <td>${LABELS[e.type] || esc(e.type)}</td><td>${esc(e.label)}</td><td>${esc(e.place)}</td>
         <td>${esc(e.source)}</td><td>${esc(e.device)}</td></tr>`).join('')
         || '<tr><td colspan="6" class="muted">No clicks yet</td></tr>';
     }
@@ -230,25 +260,25 @@
 
     // ---------- Photos ----------
     async function loadPhotos() {
-      const { data, error } = await bucket.list('', { limit: 200, sortBy: { column: 'created_at', order: 'desc' } });
+      let photos = [];
+      try { photos = (await api('/api/photos?fresh=' + Date.now())).photos || []; }
+      catch (e) { return say($('uploadMsg'), 'Could not load photos: ' + e.message, 'err'); }
       const grid = $('photos');
-      if (error) return say($('uploadMsg'), 'Could not load photos: ' + error.message, 'err');
-      const files = data.filter(f => f.id && f.name !== '.emptyFolderPlaceholder');
-      grid.innerHTML = files.length ? '' : '<p class="muted">No photos yet. The website will show the default photos until you add some.</p>';
-      files.forEach(f => {
+      grid.innerHTML = photos.length ? '' : '<p class="muted">No photos yet. The website shows the default photos until you add some.</p>';
+      $('photoCount').textContent = photos.length ? `(${photos.length})` : '';
+      photos.forEach(url => {
         const div = document.createElement('div');
         div.className = 'photo';
         const img = document.createElement('img');
-        img.src = bucket.getPublicUrl(f.name).data.publicUrl;
-        img.alt = f.name;
-        img.loading = 'lazy';
+        img.src = url; img.alt = ''; img.loading = 'lazy';
         const del = document.createElement('button');
         del.textContent = '🗑 Delete';
         del.onclick = async () => {
           if (!confirm('Delete this photo from the website?')) return;
-          const { error } = await bucket.remove([f.name]);
-          if (error) say($('uploadMsg'), 'Delete failed: ' + error.message, 'err');
-          else { say($('uploadMsg'), 'Photo deleted.', 'ok'); loadPhotos(); }
+          try {
+            await api('/api/photos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
+            say($('uploadMsg'), 'Photo deleted.', 'ok'); loadPhotos();
+          } catch (e) { say($('uploadMsg'), 'Delete failed: ' + e.message, 'err'); }
         };
         div.append(img, del);
         grid.append(div);
@@ -258,7 +288,7 @@
     // Shrink large phone photos before upload (max 1600px, JPEG)
     function compress(file) {
       return new Promise(resolve => {
-        if (!file.type.startsWith('image/') || file.type === 'image/gif') return resolve(file);
+        if (file.type === 'image/gif') return resolve(file);
         const img = new Image();
         img.onload = () => {
           const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
@@ -266,8 +296,8 @@
           c.width = Math.round(img.width * scale);
           c.height = Math.round(img.height * scale);
           c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-          c.toBlob(b => resolve(b && b.size < file.size ? b : file), 'image/jpeg', 0.85);
           URL.revokeObjectURL(img.src);
+          c.toBlob(b => resolve(b || file), 'image/jpeg', 0.85);
         };
         img.onerror = () => resolve(file);
         img.src = URL.createObjectURL(file);
@@ -277,16 +307,17 @@
     async function upload(fileList) {
       const files = [...fileList].filter(f => f.type.startsWith('image/'));
       if (!files.length) return;
-      let done = 0, failed = 0;
+      let done = 0, failed = 0, lastError = '';
       for (const file of files) {
         say($('uploadMsg'), `Uploading ${done + failed + 1} of ${files.length}…`);
-        const blob = await compress(file);
-        const ext = blob.type === 'image/jpeg' ? 'jpg' : (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const { error } = await bucket.upload(name, blob, { contentType: blob.type || file.type, cacheControl: '31536000' });
-        if (error) { failed++; console.error(error); } else done++;
+        try {
+          const blob = await compress(file);
+          if (blob.size > 4.4 * 1024 * 1024) throw new Error('Photo is too large (max 4 MB).');
+          await api('/api/photos', { method: 'POST', headers: { 'Content-Type': blob.type || file.type }, body: blob });
+          done++;
+        } catch (e) { failed++; lastError = e.message; }
       }
-      say($('uploadMsg'), failed ? `${done} uploaded, ${failed} failed (are you logged in with the owner email?).` : `${done} photo(s) uploaded ✔`, failed ? 'err' : 'ok');
+      say($('uploadMsg'), failed ? `${done} uploaded, ${failed} failed: ${lastError}` : `${done} photo(s) uploaded ✔ They will show on the website within a minute.`, failed ? 'err' : 'ok');
       loadPhotos();
     }
 
@@ -296,6 +327,9 @@
     drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
     drop.ondragleave = () => drop.classList.remove('over');
     drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); upload(e.dataTransfer.files); };
+
+    // Start
+    if (session) enter(); else logout();
   </script>
 </body>
 </html>
