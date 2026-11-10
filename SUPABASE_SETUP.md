@@ -1,6 +1,7 @@
 # Owner login & photo upload – one-time setup
 
-The website stays on GitHub Pages. Login and photo storage use **Supabase** (free plan).
+The website stays on Vercel. The owner page is at **https://sri-vinayaka-flex.vercel.app/admin**.
+Login (Sign in with Google) and photo storage use **Supabase** (free plan).
 
 ## 1. Create the project
 1. Go to https://supabase.com → sign up → **New project** (any name, e.g. `sri-vinayaka-flex`, region: Mumbai).
@@ -8,13 +9,25 @@ The website stays on GitHub Pages. Login and photo storage use **Supabase** (fre
    - **Project URL** → paste into `SUPABASE_URL` in `js/config.js`
    - **anon public** key → paste into `SUPABASE_ANON_KEY` in `js/config.js`
 
-## 2. Create the owner login
-1. **Authentication → Sign In / Providers → Email**: keep Email enabled. Turn **off** "Allow new users to sign up" so nobody else can register.
-2. **Authentication → Users → Add user → Create new user**: create one user for **each** owner email below, each with its own password, and tick "Auto confirm user":
-   - `smsreddyabc@gmail.com`
-   - `skr522522@gmail.com`
-   - `skrmixingunit@gmail.com`
-3. **Authentication → URL Configuration**: set **Site URL** to `https://smsreddyai-sketch.github.io/sri-vinayaka-flex/admin.html` (needed for the "Forgot password" email link).
+## 2. Turn on "Sign in with Google"
+Only these Gmail IDs are allowed (set in `js/config.js` and in the SQL policies below):
+`smsreddyabc@gmail.com`, `skr522522@gmail.com`, `skrmixingunit@gmail.com`
+
+**a. Google side** (https://console.cloud.google.com, signed in with any of your Gmail IDs)
+1. Create a project (e.g. `Sri Vinayaka Flex`).
+2. **APIs & Services → OAuth consent screen** (Google Auth Platform): app name `Sri Vinayaka Flex`, your email as support/contact, audience **External** → Create. Then **Publish app** (or add the three Gmail IDs as **Test users**).
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID** → type **Web application**.
+   - **Authorized JavaScript origins**: `https://sri-vinayaka-flex.vercel.app`
+   - **Authorized redirect URIs**: `https://YOUR-PROJECT-ID.supabase.co/auth/v1/callback` (copy the exact one shown in Supabase → Authentication → Sign In / Providers → Google)
+4. Copy the **Client ID** and **Client secret**.
+
+**b. Supabase side**
+1. **Authentication → Sign In / Providers → Google** → enable, paste the Client ID and Client secret → Save.
+2. **Authentication → URL Configuration**:
+   - **Site URL**: `https://sri-vinayaka-flex.vercel.app/admin`
+   - **Redirect URLs**: add `https://sri-vinayaka-flex.vercel.app/admin`
+
+Anyone can press "Sign in with Google", but any Gmail that is not in the list is signed out immediately, and the database rules below refuse uploads, deletes and stats for other accounts.
 
 ## 3. Create the photo storage
 1. **Storage → New bucket** → name `gallery` → tick **Public bucket** → Create.
@@ -71,7 +84,7 @@ using (auth.jwt() ->> 'email' in ('smsreddyabc@gmail.com', 'skr522522@gmail.com'
 The owner page then shows visits, Call / WhatsApp / Quote / Directions clicks, where visitors came from (Google, Facebook, WhatsApp, direct…), their approximate city (from ipapi.co), device, and which button they clicked.
 
 ## 5. Use it
-- Open the website → click **Owner login** at the bottom (or go to `/admin.html`).
-- Log in with the email ID and password → tap to choose photos (works from a phone) → they appear in **Our Work** immediately.
+- Open the website → click **Owner login** at the bottom (or go to https://sri-vinayaka-flex.vercel.app/admin).
+- Tap **Sign in with Google** and choose an owner Gmail ID → tap to choose photos (works from a phone) → they appear in **Our Work** immediately.
 - Tap **🗑 Delete** on a photo to remove it from the website.
 - Until at least one photo is uploaded, the website keeps showing the default photos from the `images/` folder.
