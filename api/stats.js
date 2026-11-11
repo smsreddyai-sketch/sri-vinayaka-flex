@@ -1,30 +1,23 @@
 // GET ?days=1|7|30|365 -> visit and click counts for owners.
-import { json, ownerFrom, hasRedis, pipeline, redis, istDay } from './_lib.js';
+import { json, ownerFrom, hasDb, q, istDay } from './_lib.js';
 
 export async function GET(request) {
   if (!(await ownerFrom(request))) return json({ error: 'Please log in again.' }, 401);
-  if (!hasRedis()) return json({ error: 'Stats storage is not connected in Vercel yet.' }, 503);
+  if (!hasDb()) return json({ error: 'Stats storage is not connected in Vercel yet.' }, 503);
 
   const days = Math.min(Math.max(parseInt(new URL(request.url).searchParams.get('days')) || 7, 1), 366);
-  const keys = Array.from({ length: days }, (_, i) => 's:' + istDay(i));
-  const hashes = await pipeline(keys.map(k => ['HGETALL', k]));
+  const fromDay = istDay(days - 1);
+  const rows = await q('select field, sum(n)::int as n from svf_daily where day >= $1::date group by field', [fromDay]);
 
   const out = { totals: {}, sources: {}, places: {}, areas: {}, devices: {} };
   const group = { t: 'totals', src: 'sources', city: 'places', area: 'areas', dev: 'devices' };
-  for (const flat of hashes) {
-    if (!Array.isArray(flat)) continue;
-    for (let i = 0; i < flat.length; i += 2) {
-      const field = flat[i], n = Number(flat[i + 1]) || 0;
-      const at = field.indexOf(':');
-      const bucket = out[group[field.slice(0, at)]];
-      if (!bucket) continue;
-      const name = field.slice(at + 1);
-      bucket[name] = (bucket[name] || 0) + n;
-    }
+  for (const { field, n } of rows) {
+    const at = field.indexOf(':');
+    const bucket = out[group[field.slice(0, at)]];
+    if (bucket) bucket[field.slice(at + 1)] = n;
   }
-  const since = days === 1 ? Date.parse(istDay(0) + 'T00:00:00+05:30') : Date.now() - days * 864e5;
-  const recent = ((await redis('LRANGE', 'recent', 0, 199)) || [])
-    .map(s => { try { return JSON.parse(s); } catch (e) { return null; } })
-    .filter(e => e && e.at >= since).slice(0, 100);
+  const since = Date.parse(fromDay + 'T00:00:00+05:30');
+  const recent = (await q('select at, data from svf_recent where at >= $1 order by id desc limit 100', [since]))
+    .map(r => ({ at: Number(r.at), ...(typeof r.data === 'string' ? JSON.parse(r.data) : r.data) }));
   return json({ days, ...out, recent });
 }

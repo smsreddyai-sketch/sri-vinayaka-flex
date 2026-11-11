@@ -21,7 +21,7 @@ Pick one Gmail account to send the codes from (`smsreddyai@gmail.com`).
 ## 2. Connect storage for photos and counts (a few clicks, nothing to copy)
 In Vercel → project **sri-vinayaka-flex** → **Storage** tab:
 1. **Create Database → Blob** → name `photos` → Create → **Connect** to the project. (Stores uploaded photos.)
-2. **Create Database → Upstash for Redis** (free plan) → name `stats` → Create → **Connect** to the project. (Stores visitor counts, the photo list and login-code limits.)
+2. **Create Database → Neon (Serverless Postgres)** → **Free** plan → name `sri-vinayaka-db` → Create → **Connect** to the project. (Stores visitor counts, the photo list, extra owners and login-code limits.)
 
 ## 3. Redeploy
 Vercel → **Deployments** → latest one → **⋯ → Redeploy**, so the new settings take effect.

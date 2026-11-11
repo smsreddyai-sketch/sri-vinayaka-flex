@@ -2,8 +2,11 @@
   "name": "sri-vinayaka-flex",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.9.0",
     "nodemailer": "^10.5.0"
   }

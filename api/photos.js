@@ -2,28 +2,27 @@
 // POST   -> upload one photo (owner only). Body = image bytes, Content-Type = image type.
 // DELETE -> { url } remove a photo (owner only)
 import { put, del } from '@vercel/blob';
-import { json, ownerFrom, hasRedis, redis } from './_lib.js';
+import { json, ownerFrom, hasDb, q } from './_lib.js';
 
-const KEY = 'photos';
 const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
 
 export async function GET(request) {
-  if (!hasRedis()) return json({ photos: [] });
-  const photos = await redis('LRANGE', KEY, 0, 499);
+  if (!hasDb()) return json({ photos: [] });
+  const photos = (await q('select url from svf_photos order by created_at desc limit 500')).map(r => r.url);
   const fresh = new URL(request.url).searchParams.has('fresh');
   return json({ photos }, 200, fresh ? {} : { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' });
 }
 
 export async function POST(request) {
   if (!(await ownerFrom(request))) return json({ error: 'Please log in again.' }, 401);
-  if (!process.env.BLOB_READ_WRITE_TOKEN || !hasRedis()) return json({ error: 'Photo storage is not connected in Vercel yet.' }, 503);
+  if (!process.env.BLOB_READ_WRITE_TOKEN || !hasDb()) return json({ error: 'Photo storage is not connected in Vercel yet.' }, 503);
   const type = (request.headers.get('content-type') || '').split(';')[0];
   if (!TYPES[type]) return json({ error: 'Only JPG, PNG, WEBP or GIF photos are allowed.' }, 415);
   const data = Buffer.from(await request.arrayBuffer());
   if (!data.length) return json({ error: 'Empty file' }, 400);
   const name = `gallery/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${TYPES[type]}`;
   const blob = await put(name, data, { access: 'public', contentType: type, addRandomSuffix: false, cacheControlMaxAge: 31536000 });
-  await redis('LPUSH', KEY, blob.url);
+  await q('insert into svf_photos (url) values ($1) on conflict do nothing', [blob.url]);
   return json({ ok: true, url: blob.url });
 }
 
@@ -31,8 +30,8 @@ export async function DELETE(request) {
   if (!(await ownerFrom(request))) return json({ error: 'Please log in again.' }, 401);
   const { url } = await request.json().catch(() => ({}));
   if (!url) return json({ error: 'Missing photo' }, 400);
-  const removed = await redis('LREM', KEY, 0, url);
-  if (!removed) return json({ error: 'Photo not found' }, 404);
+  const removed = await q('delete from svf_photos where url = $1 returning url', [url]);
+  if (!removed.length) return json({ error: 'Photo not found' }, 404);
   await del(url).catch(e => console.error('blob delete failed', e));
   return json({ ok: true });
 }

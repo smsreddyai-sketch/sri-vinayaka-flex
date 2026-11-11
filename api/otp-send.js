@@ -1,7 +1,7 @@
 // POST { email } -> emails a 6-digit login code to an owner Gmail ID.
 import crypto from 'node:crypto';
 import nodemailer from 'nodemailer';
-import { isOwner, json, sign, hmac, hasRedis, redis } from './_lib.js';
+import { isOwner, json, sign, hmac, hasDb, bump } from './_lib.js';
 
 export async function POST(request) {
   const { email: raw } = await request.json().catch(() => ({}));
@@ -12,9 +12,8 @@ export async function POST(request) {
   if (!user || !pass) return json({ error: 'Email login is not set up yet. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel.' }, 503);
 
   // At most one code per minute per email
-  if (hasRedis()) {
-    const ok = await redis('SET', `otp:wait:${email}`, '1', 'NX', 'EX', 60);
-    if (!ok) return json({ error: 'A code was just sent. Please wait 1 minute before asking again.' }, 429);
+  if (hasDb()) {
+    if ((await bump('wait:' + email, 60)) > 1) return json({ error: 'A code was just sent. Please wait 1 minute before asking again.' }, 429);
   }
 
   const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
