@@ -1,8 +1,17 @@
 // Shared helpers for the owner page API. Files starting with "_" are not public routes.
 import crypto from 'node:crypto';
 
-// Only these Gmail IDs can receive a login code and open /admin.
-export const OWNER_EMAILS = ['smsreddyabc@gmail.com', 'skr522522@gmail.com', 'skrmixingunit@gmail.com'];
+// Main owners: always allowed and cannot be removed from the owner page.
+// More owner emails can be added on /admin (stored in Redis set "owners").
+export const BASE_OWNERS = ['smsreddyai@gmail.com', 'smsreddyabc@gmail.com', 'skr522522@gmail.com', 'skrmixingunit@gmail.com'];
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export async function isOwner(email) {
+  email = String(email || '').trim().toLowerCase();
+  if (BASE_OWNERS.includes(email)) return true;
+  if (!hasRedis() || !EMAIL_RE.test(email)) return false;
+  return (await redis('SISMEMBER', 'owners', email)) === 1;
+}
 
 export const json = (data, status = 200, headers = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers } });
@@ -52,11 +61,11 @@ export function verify(token) {
 }
 
 // Returns the owner's email if the request carries a valid login session, else null.
-export function ownerFrom(request) {
+export async function ownerFrom(request) {
   const token = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
   try {
     const p = verify(token);
-    return p && p.kind === 'session' && OWNER_EMAILS.includes(p.email) ? p.email : null;
+    return p && p.kind === 'session' && (await isOwner(p.email)) ? p.email : null;
   } catch (e) { return null; }
 }
 

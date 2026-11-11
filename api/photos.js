@@ -15,7 +15,7 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
-  if (!ownerFrom(request)) return json({ error: 'Please log in again.' }, 401);
+  if (!(await ownerFrom(request))) return json({ error: 'Please log in again.' }, 401);
   if (!process.env.BLOB_READ_WRITE_TOKEN || !hasRedis()) return json({ error: 'Photo storage is not connected in Vercel yet.' }, 503);
   const type = (request.headers.get('content-type') || '').split(';')[0];
   if (!TYPES[type]) return json({ error: 'Only JPG, PNG, WEBP or GIF photos are allowed.' }, 415);
@@ -28,7 +28,7 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
-  if (!ownerFrom(request)) return json({ error: 'Please log in again.' }, 401);
+  if (!(await ownerFrom(request))) return json({ error: 'Please log in again.' }, 401);
   const { url } = await request.json().catch(() => ({}));
   if (!url) return json({ error: 'Missing photo' }, 400);
   const removed = await redis('LREM', KEY, 0, url);

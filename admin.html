@@ -133,6 +133,17 @@
         <div id="uploadMsg" class="msg"></div>
         <div class="photos" id="photos"></div>
       </div>
+
+      <div class="box">
+        <h1 style="margin: 0">Owner Email IDs</h1>
+        <p class="muted" style="margin-top: 8px">These email IDs can log in with a code to upload photos and see the counts.</p>
+        <form id="ownerForm" class="row">
+          <input type="email" id="newOwner" required placeholder="new.owner@gmail.com" style="flex: 1; min-width: 220px">
+          <button class="btn" type="submit">+ Add owner</button>
+        </form>
+        <div id="ownerMsg" class="msg"></div>
+        <table><tbody id="owners"></tbody></table>
+      </div>
     </div>
   </main>
 
@@ -178,6 +189,7 @@
         }
         loadStats();
         loadPhotos();
+        loadOwners();
       } catch (e) { /* api() already showed the login page */ }
     }
 
@@ -327,6 +339,34 @@
     drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
     drop.ondragleave = () => drop.classList.remove('over');
     drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over'); upload(e.dataTransfer.files); };
+
+    // ---------- Owner email IDs ----------
+    function renderOwners(d) {
+      const me = $('who').textContent;
+      $('owners').innerHTML =
+        d.main.map(e => `<tr><td>${esc(e)}</td><td class="muted">🔒 Main owner</td><td></td></tr>`).join('') +
+        d.added.map(e => `<tr><td>${esc(e)}</td><td class="muted">Added</td><td style="text-align:right">${e === me ? '' :
+          `<button class="btn btn-ghost" data-remove="${esc(e)}" style="padding:6px 14px; font-size:.85rem">Remove</button>`}</td></tr>`).join('');
+    }
+    async function loadOwners() {
+      try { renderOwners(await api('/api/owners')); } catch (e) { say($('ownerMsg'), e.message, 'err'); }
+    }
+    $('ownerForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        renderOwners(await api('/api/owners', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: $('newOwner').value }) }));
+        say($('ownerMsg'), $('newOwner').value + ' can now log in.', 'ok');
+        $('newOwner').value = '';
+      } catch (err) { say($('ownerMsg'), err.message, 'err'); }
+    });
+    $('owners').addEventListener('click', async e => {
+      const email = e.target.dataset.remove;
+      if (!email || !confirm(`Remove ${email}? They will no longer be able to log in.`)) return;
+      try {
+        renderOwners(await api('/api/owners', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }));
+        say($('ownerMsg'), email + ' removed.', 'ok');
+      } catch (err) { say($('ownerMsg'), err.message, 'err'); }
+    });
 
     // Start
     if (session) enter(); else logout();

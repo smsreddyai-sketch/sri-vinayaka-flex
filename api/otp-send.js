@@ -1,12 +1,12 @@
 // POST { email } -> emails a 6-digit login code to an owner Gmail ID.
 import crypto from 'node:crypto';
 import nodemailer from 'nodemailer';
-import { OWNER_EMAILS, json, sign, hmac, hasRedis, redis } from './_lib.js';
+import { isOwner, json, sign, hmac, hasRedis, redis } from './_lib.js';
 
 export async function POST(request) {
   const { email: raw } = await request.json().catch(() => ({}));
   const email = String(raw || '').trim().toLowerCase();
-  if (!OWNER_EMAILS.includes(email)) return json({ error: 'This email ID does not have owner access.' }, 403);
+  if (!(await isOwner(email))) return json({ error: 'This email ID does not have owner access.' }, 403);
 
   const user = process.env.GMAIL_USER, pass = process.env.GMAIL_APP_PASSWORD;
   if (!user || !pass) return json({ error: 'Email login is not set up yet. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel.' }, 503);

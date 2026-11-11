@@ -1,12 +1,12 @@
 // POST { token, code } -> { session } valid for 7 days.
 import crypto from 'node:crypto';
-import { OWNER_EMAILS, json, sign, verify, hmac, hasRedis, redis } from './_lib.js';
+import { isOwner, json, sign, verify, hmac, hasRedis, redis } from './_lib.js';
 
 export async function POST(request) {
   const { token, code } = await request.json().catch(() => ({}));
   let p;
   try { p = verify(token); } catch (e) { return json({ error: e.message }, 503); }
-  if (!p || p.kind !== 'otp' || !OWNER_EMAILS.includes(p.email)) return json({ error: 'Code expired. Please ask for a new code.' }, 401);
+  if (!p || p.kind !== 'otp' || !(await isOwner(p.email))) return json({ error: 'Code expired. Please ask for a new code.' }, 401);
 
   // At most 5 tries per code
   if (hasRedis()) {

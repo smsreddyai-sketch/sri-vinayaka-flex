@@ -2,7 +2,7 @@
 import { json, ownerFrom, hasRedis, pipeline, redis, istDay } from './_lib.js';
 
 export async function GET(request) {
-  if (!ownerFrom(request)) return json({ error: 'Please log in again.' }, 401);
+  if (!(await ownerFrom(request))) return json({ error: 'Please log in again.' }, 401);
   if (!hasRedis()) return json({ error: 'Stats storage is not connected in Vercel yet.' }, 503);
 
   const days = Math.min(Math.max(parseInt(new URL(request.url).searchParams.get('days')) || 7, 1), 366);
