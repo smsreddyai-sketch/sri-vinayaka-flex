@@ -9,7 +9,7 @@ More owners can be added or removed on the owner page under **Owner Email IDs**.
 
 No database: uploaded photos and the extra-owner list are files in **Vercel Blob** (already connected).
 
-## The one remaining setting: Gmail App Password
+## Gmail App Password (done — only needed again if you change it)
 1. Sign in to **smsreddyai@gmail.com** → https://myaccount.google.com/apppasswords
    (2-Step Verification must be on.) Name it `Vinayaka website` → **Create** → copy the 16 letters.
 2. Vercel → project **sri-vinayaka-flex** → **Settings → Environment Variables** → **Add**:
