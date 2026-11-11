@@ -256,7 +256,7 @@
           done++;
         } catch (e) { failed++; lastError = e.message; }
       }
-      say($('uploadMsg'), failed ? `${done} uploaded, ${failed} failed: ${lastError}` : `${done} photo(s) uploaded ✔ They will show on the website within a minute.`, failed ? 'err' : 'ok');
+      say($('uploadMsg'), failed ? `${done} uploaded, ${failed} failed: ${lastError}` : `${done} photo(s) uploaded ✔ They now show on the website (refresh the homepage).`, failed ? 'err' : 'ok');
       loadPhotos();
     }
 

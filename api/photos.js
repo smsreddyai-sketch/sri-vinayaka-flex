@@ -17,7 +17,7 @@ export async function GET(request) {
   } while (cursor);
   const photos = blobs.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)).map(b => b.url);
   const fresh = new URL(request.url).searchParams.has('fresh');
-  return json({ photos }, 200, fresh ? {} : { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' });
+  return json({ photos }, 200, fresh ? {} : { 'Cache-Control': 'public, s-maxage=20, stale-while-revalidate=60' });
 }
 
 export async function POST(request) {

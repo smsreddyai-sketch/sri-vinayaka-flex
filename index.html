@@ -458,10 +458,10 @@
       try {
         const ctrl = new AbortController();
         setTimeout(() => ctrl.abort(), 3000);
-        const res = await fetch('/api/photos', { signal: ctrl.signal });
+        const res = await fetch('/api/photos', { signal: ctrl.signal, cache: 'no-store' });
         if (res.ok) photos = (await res.json()).photos || [];
       } catch (e) { /* use default photos */ }
-      renderGallery(photos.length ? photos : DEFAULT_PHOTOS);
+      renderGallery([...photos, ...DEFAULT_PHOTOS]);   // uploaded + default photos
     })();
   </script>
 </body>
